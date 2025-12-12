@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Smart Smoke Detector FYP</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #0a0a0a;
+            color: white;
+            text-align: center;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        h1 { margin: 20px 0; font-size: 2em; }
+        input, button {
+            padding: 12px 20px;
+            margin: 8px;
+            width: 100%;
+            max-width: 320px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        input {
+            background: #222;
+            color: white;
+            border: 1px solid #444;
+        }
+        button {
+            background: #0066ff;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+        button:hover { background: #0052cc; }
+        button:active { transform: scale(0.98); }
+        
+        .status {
+            width: 180px;
+            height: 180px;
+            border-radius: 50%;
+            margin: 40px auto;
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 4em;
+            box-shadow: 0 10px 40px rgba(46, 204, 113, 0.4);
+            transition: all 0.5s ease;
+        }
+        .status.red {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            box-shadow: 0 10px 40px rgba(231, 76, 60, 0.6);
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        #txt {
+            margin: 20px 0;
+            font-size: 1.8em;
+        }
+        
+        #admin {
+            display: none;
+            background: #1a1a1a;
+            padding: 30px;
+            border-radius: 15px;
+            margin: 30px auto;
+            max-width: 500px;
+            border: 2px solid #333;
+        }
+        #admin h3 {
+            color: #0066ff;
+            margin-bottom: 20px;
+        }
+        
+        .email-list {
+            background: #222;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .email-item {
+            background: #333;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .email-item button {
+            width: auto;
+            padding: 8px 15px;
+            margin: 0;
+            background: #e74c3c;
+            font-size: 12px;
+        }
+        .email-item button:hover {
+            background: #c0392b;
+        }
+        
+        #g {
+            max-width: 800px;
+            margin: 30px auto;
+            background: #1a1a1a;
+            padding: 20px;
+            border-radius: 15px;
+        }
+        
+        .logout-btn {
+            background: #e74c3c;
+            max-width: 150px;
+            margin: 20px auto;
+        }
+        .logout-btn:hover {
+            background: #c0392b;
+        }
+        
+        .section {
+            margin: 30px 0;
+            padding: 20px;
+            background: #1a1a1a;
+            border-radius: 15px;
+            max-width: 500px;
+            margin: 20px auto;
+        }
+        
+        .info-box {
+            background: #222;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔥 Smart Smoke Detector</h1>
+
+    <div id="login">
+        <div class="section">
+            <h2>Log Masuk / Daftar</h2>
+            <input type="email" id="e" placeholder="Email"><br>
+            <input type="password" id="p" placeholder="Password"><br>
+            <button onclick="login()">Log Masuk</button>
+            <button onclick="daftar()">Daftar Akaun Baru</button>
+        </div>
+    </div>
+
+    <div id="dash" style="display:none">
+        <button class="logout-btn" onclick="logout()">Log Keluar</button>
+        
+        <div id="status" class="status">✓</div>
+        <div id="txt">Tiada Asap</div>
+        
+        <div class="info-box" id="sensor-value">Nilai Sensor: -</div>
+        
+        <canvas id="g" height="200"></canvas>
+
+        <div id="admin">
+            <h3>⚙️ ADMIN PANEL</h3>
+            
+            <div class="section">
+                <h4>Buzzer Control</h4>
+                <button onclick="tb()">Toggle Buzzer</button>
+                <div class="info-box" id="buzzer-status">Status: Loading...</div>
+            </div>
+            
+            <div class="section">
+                <h4>Email Recipients</h4>
+                <input id="ne" placeholder="Tambah Email (contoh@gmail.com)">
+                <button onclick="ae()">Tambah Email</button>
+                <div class="email-list" id="el">
+                    <div style="color:#888">Loading emails...</div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h4>Admin Management</h4>
+                <input id="ma" placeholder="Email untuk jadikan admin">
+                <button onclick="ja()">Jadikan Admin</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const c = {
+            apiKey: "AIzaSyB1zHA9zoWUISdOkkZBGVDTAXAhRJ2YRlY",
+            authDomain: "smokedetectorfyp.firebaseapp.com",
+            databaseURL: "https://smokedetectorfyp-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "smokedetectorfyp"
+        };
+        firebase.initializeApp(c);
+        const db = firebase.database();
+        const auth = firebase.auth();
+        let uid = null;
+
+        function daftar() {
+            const email = document.getElementById('e').value.trim();
+            const pass = document.getElementById('p').value;
+            
+            if (!email || !pass) {
+                alert("Sila isi email dan password!");
+                return;
+            }
+            
+            auth.createUserWithEmailAndPassword(email, pass)
+                .then(u => {
+                    // Save user email in database
+                    db.ref('users/' + u.user.uid).set({
+                        email: email,
+                        role: 'user',
+                        created: new Date().toISOString()
+                    });
+                    alert("✓ Daftar berjaya! Sila log masuk.");
+                    document.getElementById('p').value = '';
+                })
+                .catch(err => alert("Error: " + err.message));
+        }
+
+        function login() {
+            const email = document.getElementById('e').value.trim();
+            const pass = document.getElementById('p').value;
+            
+            if (!email || !pass) {
+                alert("Sila isi email dan password!");
+                return;
+            }
+            
+            auth.signInWithEmailAndPassword(email, pass)
+                .then(u => {
+                    uid = u.user.uid;
+                    document.getElementById('login').style.display = 'none';
+                    document.getElementById('dash').style.display = 'block';
+                    checkAdmin();
+                    startRealtime();
+                })
+                .catch(err => alert("Error: " + err.message));
+        }
+
+        function logout() {
+            auth.signOut().then(() => {
+                location.reload();
+            });
+        }
+
+        function checkAdmin() {
+            db.ref('users/' + uid + '/role').on('value', s => {
+                if (s.val() === "admin") {
+                    document.getElementById('admin').style.display = 'block';
+                    loadEmails();
+                    monitorBuzzer();
+                }
+            });
+        }
+
+        function startRealtime() {
+            // Monitor smoke status - ESP sends "true"/"false" as strings
+            db.ref('smoke_status').on('value', s => {
+                const st = document.getElementById('status');
+                const tx = document.getElementById('txt');
+                const val = s.val();
+                
+                // Check both string and boolean
+                if (val === "true" || val === true) {
+                    st.classList.add('red');
+                    st.innerHTML = '⚠️';
+                    tx.innerHTML = '⚠️ ASAP DIKESAN!';
+                    document.body.style.background = '#1a0000';
+                } else {
+                    st.classList.remove('red');
+                    st.innerHTML = '✓';
+                    tx.innerHTML = 'Tiada Asap';
+                    document.body.style.background = '#0a0a0a';
+                }
+            });
+
+            // Monitor sensor value
+            db.ref('smoke_value').on('value', s => {
+                const val = s.val() || 0;
+                document.getElementById('sensor-value').innerHTML = 
+                    `Nilai Sensor: <strong>${val}</strong> ${val > 380 ? '⚠️' : '✓'}`;
+            });
+
+            // Graf
+            const ctx = document.getElementById('g').getContext('2d');
+            const chart = new Chart(ctx, {
+                type: 'line',
+                data: { 
+                    labels: [], 
+                    datasets: [{ 
+                        label: 'Nilai Sensor MQ-2', 
+                        data: [], 
+                        borderColor: '#ff9500',
+                        backgroundColor: 'rgba(255, 149, 0, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }] 
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { labels: { color: 'white' } }
+                    },
+                    scales: {
+                        y: { 
+                            ticks: { color: 'white' },
+                            grid: { color: '#333' }
+                        },
+                        x: { 
+                            ticks: { color: 'white' },
+                            grid: { color: '#333' }
+                        }
+                    }
+                }
+            });
+            
+            db.ref('smoke_value').on('value', s => {
+                const time = new Date().toLocaleTimeString();
+                chart.data.labels.push(time);
+                chart.data.datasets[0].data.push(s.val() || 0);
+                if (chart.data.labels.length > 20) { 
+                    chart.data.labels.shift(); 
+                    chart.data.datasets[0].data.shift(); 
+                }
+                chart.update();
+            });
+        }
+
+        function monitorBuzzer() {
+            db.ref('buzzer_control').on('value', s => {
+                const status = s.val();
+                const statusText = (status === "true" || status === true) ? 
+                    '🔊 ON (Bunyi bila asap)' : '🔇 OFF (Senyap)';
+                document.getElementById('buzzer-status').innerHTML = 'Status: ' + statusText;
+            });
+        }
+
+        function tb() {
+            db.ref('buzzer_control').once('value').then(s => {
+                const current = s.val();
+                const newVal = (current === "true" || current === true) ? "false" : "true";
+                db.ref('buzzer_control').set(newVal);
+                alert('Buzzer ' + (newVal === "true" ? 'ON' : 'OFF'));
+            });
+        }
+
+        function ae() {
+            const email = document.getElementById('ne').value.trim();
+            if (!email) {
+                alert('Sila masukkan email!');
+                return;
+            }
+            
+            // Validate email format
+            if (!email.includes('@') || !email.includes('.')) {
+                alert('Format email tidak sah!');
+                return;
+            }
+            
+            // Get existing emails to find next number
+            db.ref('emails').once('value').then(s => {
+                const emails = s.val() || {};
+                let nextNum = 1;
+                
+                // Find next available number
+                while (emails['email' + nextNum]) {
+                    nextNum++;
+                }
+                
+                // Add with key format: email1, email2, email3...
+                db.ref('emails/email' + nextNum).set(email).then(() => {
+                    alert('✓ Email ditambah: ' + email);
+                    document.getElementById('ne').value = '';
+                });
+            });
+        }
+
+        function removeEmail(key) {
+            if (confirm('Buang email ini?')) {
+                db.ref('emails/' + key).remove().then(() => {
+                    alert('✓ Email dibuang');
+                });
+            }
+        }
+
+        function ja() {
+            const email = document.getElementById('ma').value.trim();
+            if (!email) {
+                alert('Sila masukkan email!');
+                return;
+            }
+            
+            db.ref('users').orderByChild('email').equalTo(email).once('value').then(s => {
+                if (s.val()) {
+                    const key = Object.keys(s.val())[0];
+                    db.ref('users/' + key + '/role').set('admin').then(() => {
+                        alert('✓ ' + email + ' dah jadi admin!');
+                        document.getElementById('ma').value = '';
+                    });
+                } else {
+                    alert('❌ Email tidak dijumpai. Pastikan user dah daftar akaun dulu.');
+                }
+            });
+        }
+
+        function loadEmails() {
+            db.ref('emails').on('value', s => {
+                let html = '';
+                const emails = s.val();
+                
+                if (emails) {
+                    Object.keys(emails).forEach(key => {
+                        html += `
+                            <div class="email-item">
+                                <span>${emails[key]}</span>
+                                <button onclick="removeEmail('${key}')">Buang</button>
+                            </div>
+                        `;
+                    });
+                } else {
+                    html = '<div style="color:#888">Tiada email lagi. Tambah email di atas.</div>';
+                }
+                
+                document.getElementById('el').innerHTML = html;
+            });
+        }
+    </script>
+</body>
+</html>
